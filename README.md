@@ -162,22 +162,27 @@ df.head()
 
 ### Group 1
 
-Write a function called `bin_middle_age` that can be applied to the `age` column and returns a 1 if the age is 45-64 and a zero for every other age. 
+Write a function called `bin_middle_age` that can be applied to the `age` column in `X_train` and returns a 1 if the age is 45-64 and a zero for every other age. 
 
 ### Group 2
 
-Write a function called `bin_capital` that can be applied to the `capital_gain` and `capital_loss` columns and returns a 1 if the input is more than zero and a 0 for anything else.
+Write a function called `bin_capital` that can be applied to the `capital_gain` and `capital_loss` columns in `X_train` and returns a 1 if the input is more than zero and a 0 for anything else.
 
 ### Group 3
 
-Please write code to fit a one hot encoder to all of the object datatypes. Transform the object columns and turn them into a dataframe. For this final step, I'll give you two clues: "sparse" and "dense". Only one of them will be needed.
+Please write code to fit a one hot encoder to all of the object datatypes. Transform the object columns in `X_train` and turn them into a dataframe. For this final step, I'll give you two clues: "sparse" and "dense". Only one of them will be needed.
 
 ### Group 4
 
-Please write code to scale the `'hours_per_week'` column. Because you are scaling, please write code that does not lead to data leakage.
+Please write code to scale the `'hours_per_week'` column in `X_train'.
 
 
 ```python
+X_train, X_test, y_train, y_test = train_test_split(df.drop('income', axis = 1), 
+                                                    df.income,
+                                                    random_state = 2020)  
+X_train.reset_index(drop=True, inplace=True)
+
 # Group 1
 def bin_middle_age(age):
     if age < 45:
@@ -187,7 +192,7 @@ def bin_middle_age(age):
     else: 
         return 1
 
-df['age'] = df.age.apply(bin_middle_age)
+X_train['age'] = X_train.age.apply(bin_middle_age)
 
 # Group 2
 def bin_capital(x):
@@ -196,13 +201,10 @@ def bin_capital(x):
     else:
         return 0
 
-df['capital_gain'] = df.capital_gain.apply(bin_capital)
-df['capital_loss'] = df.capital_loss.apply(bin_capital)
+X_train['capital_gain'] = X_train.capital_gain.apply(bin_capital)
+X_train['capital_loss'] = X_train.capital_loss.apply(bin_capital)
 
-X_train, X_test, y_train, y_test = train_test_split(df.drop('income', axis = 1), 
-                                                    df.income,
-                                                    random_state = 2020)  
-X_train.reset_index(drop=True, inplace=True)
+
 
 # Group 3
 hot_encoder = OneHotEncoder(sparse=False)
@@ -427,25 +429,34 @@ class BinAge(TransformerMixin, BaseEstimator):
     
     def fit(self, X, y=None):
         return self
-    
-    def _bin_data(self, x):
-        if x < 45 or x > 64:
-            return 0 
-        else: 
-            return 1
-        
+   
     def _to_df(self, X):
         if type(X) != pd.DataFrame:
-            data = pd.DataFrame([X], index=len([X]))
+            if type(X) != list:
+                if type(X) == pd.Series:
+                    data = pd.DataFrame(X)
+                elif type(X) == dict:
+                    data = pd.DataFrame([X])
+                else:
+                    raise ValueError('X must be a dataframe, list, series, or dictionary  object.')
+            else:
+                data = pd.DataFrame(X)
         else:
             data = X.copy()
         return data
     
+    def _bin_data(self, x):
+        if x < 45:
+            return 0 
+        elif x > 64:
+            return 0
+        else: 
+            return 1
+        
     def transform(self, X):
         data = self._to_df(X)
         data = data.applymap(self._bin_data)
-        
-        return data 
+        return data
 ```
 
 **Now repeat the process for a `BinCapital` Transformer!**
@@ -458,6 +469,21 @@ class BinCapital(TransformerMixin, BaseEstimator):
     
     def fit(self, X, y=None):
         return self
+   
+    def _to_df(self, X):
+        if type(X) != pd.DataFrame:
+            if type(X) != list:
+                if type(X) == pd.Series:
+                    data = pd.DataFrame(X)
+                elif type(X) == dict:
+                    data = pd.DataFrame([X])
+                else:
+                    raise ValueError('X must be a dataframe, list, series, or dictionary  object.')
+            else:
+                data = pd.DataFrame(X)
+        else:
+            data = X.copy()
+        return data
     
     def _bin_data(self, x):
         if x > 0:
@@ -465,17 +491,10 @@ class BinCapital(TransformerMixin, BaseEstimator):
         else:
             return 0
         
-    def _to_df(self, X):
-        if type(X) != pd.DataFrame:
-            data = pd.DataFrame([X], index=len([X]))
-        else:
-            data = X.copy()
-        return data
-    
     def transform(self, X):
         data = self._to_df(X)
         data = data.applymap(self._bin_data)
-        return data 
+        return data
 ```
 
 ## Create pipeline
@@ -535,7 +554,7 @@ cross_val_score(dt_pipeline, X_train, y_train)
 
 
 
-    array([0.80823476, 0.79026388, 0.80391265, 0.80705347, 0.79681456])
+    array([0.80959964, 0.79094631, 0.80414013, 0.80705347, 0.79590444])
 
 
 
@@ -547,7 +566,7 @@ cross_val_score(rf_pipeline, X_train, y_train)
 
 
 
-    array([0.83575978, 0.83484986, 0.83371247, 0.83390216, 0.83526735])
+    array([0.83530482, 0.83621474, 0.83621474, 0.83208191, 0.83777019])
 
 
 
@@ -560,8 +579,8 @@ print(f'Training Accuracy: {accuracy_score(y_train, train_preds)}')
 print(f'Testing Accuracy: {accuracy_score(y_test, test_preds)}')
 ```
 
-    Training Accuracy: 0.8458003458003458
-    Testing Accuracy: 0.8390663390663391
+    Training Accuracy: 0.8454818454818455
+    Testing Accuracy: 0.8381108381108381
 
 
 Finally, we can fit the final pipeline on all of the data and test it on an additional hold out set!
@@ -582,7 +601,7 @@ rf_pipeline.fit(df.drop('income', axis = 1), df.income)
                                                       ['capital_loss']),
                                                      ('onehotencoder',
                                                       OneHotEncoder(),
-                                                      <sklearn.compose._column_transformer.make_column_selector object at 0x7fa21d2f43d0>),
+                                                      <sklearn.compose._column_transformer.make_column_selector object at 0x7fa55de08610>),
                                                      ('standardscaler',
                                                       StandardScaler(),
                                                       ['hours_per_week'])])),
@@ -604,6 +623,6 @@ accuracy_score(y_val, val_preds)
 
 
 
-    0.8449017199017199
+    0.8409090909090909
 
 
